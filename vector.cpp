@@ -15,6 +15,12 @@ constexpr size_t BLOCK_SIZE = 512;
 template <typename T>
 class Vector {
 
+    // Вспомогательный класс индексации по внутреннему содержимому вектора ref_ (о нём ниже):
+    //     ps_ - пара из {номер блока, позиция в блоке}.
+    //
+    //     ref_sz_ - количество блоков (как видно, при адресации блоков оно существенно используется и меняется в
+    //               процессе работы, например, при реаллокации вектора, поэтому удобно хранить как поле класса).
+    
     class Pointer {
     public:
         Pointer() : ps_({0, 0}), ref_sz_(0) {
@@ -24,6 +30,7 @@ class Vector {
             : ps_(std::move(p)), ref_sz_(ref_size) {
         }
 
+        // Переход к следующему элементу вектора
         Pointer& operator++() {
             if (ps_.second + 1 == BLOCK_SIZE) {
                 ps_ = std::make_pair((ps_.first + 1) % ref_sz_, 0);
@@ -34,6 +41,7 @@ class Vector {
             return *this;
         }
 
+        // Переход к предыдущему элементу вектора
         Pointer& operator--() {
             if (ps_.second == 0) {
                 ps_ = std::make_pair(ps_.first ? ps_.first - 1 : ref_sz_ - 1, BLOCK_SIZE - 1);
@@ -44,6 +52,7 @@ class Vector {
             return *this;
         }
 
+        // Метод сдвига по вектору вправо на x единиц
         Pointer operator+(size_t x) const {
             Pointer cur = *this;
             size_t mp = (cur.ps_.second + x) / BLOCK_SIZE;
@@ -324,11 +333,16 @@ public:
     }
 
 private:
+    // Двумерный массив из блоков по BLOCK_SIZE = 512 элементов.
     T** ref_ = nullptr;
 
     size_t ref_sz_;
-    Pointer begin_, end_;  // [begin, end]
+    
+    // [begin, end] - конкретно здесь обе границы включительно. У методов же Begin() и End() поведение стандартно:
+    // вектор в диапазоне [Begin(), End()), то есть конец End() невключительно.
+    Pointer begin_, end_;
 
+    // Реальный размер
     size_t size_;
 
     void Realloc() {
@@ -443,3 +457,4 @@ template <typename T>
 Iterator<T> end(Vector<T>& list) {  // NOLINT
     return list.End();
 }
+
